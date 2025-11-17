@@ -28,16 +28,25 @@ class ad4020(rx, context_manager):
 
     def __init__(self, uri="", device_name="ad4020"):
         if not device_name:
-            _device_name = self._compatible_parts[0]
+            self._device_name = self._compatible_parts[0]
         elif device_name not in self._compatible_parts:
             raise Exception(f"Not a compatible device: {device_name}")
         else:
-            _device_name = device_name
+            self._device_name = device_name
 
         context_manager.__init__(self, uri, self._device_name)
 
-        self._rxadc = self._ctx.find_device(_device_name)
-        self._ctrl = self._ctx.find_device(_device_name)
+        self._rxadc = self._ctx.find_device(self._device_name)
+        self._ctrl = self._ctx.find_device(self._device_name)
+        
+        if self._ctrl is None:
+            # Try to find any available devices for debugging
+            available_devices = [dev.name for dev in self._ctx.devices]
+            raise Exception(
+                f"Device '{self._device_name}' not found in IIO context. "
+                f"Available devices: {available_devices}"
+            )
+        
         self.channel = []
         for ch in self._ctrl.channels:
             name = ch._id
@@ -65,6 +74,16 @@ class ad4020(rx, context_manager):
         @scale.setter
         def scale(self, value):
             self._set_iio_attr(self.name, "scale", False, str(Decimal(value).real))
+
+        @property
+        def offset(self):
+            """AD4020 channel offset"""
+            return self._get_iio_attr(self.name, "offset", False)
+
+        @offset.setter
+        def offset(self, value):
+            """Set the offset value."""
+            self._set_iio_attr(self.name, "offset", False, value)
 
         @property
         def sampling_frequency(self):
